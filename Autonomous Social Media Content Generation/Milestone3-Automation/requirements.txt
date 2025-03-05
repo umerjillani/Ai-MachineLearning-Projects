@@ -1,0 +1,11 @@
+# Core Dependencies
+python-dotenv==1.0.0
+pandas==2.0.3
+openai==0.28.1
+requests==2.31.0
+cloudinary==1.36.0
+schedule==1.2.0
+openpyxl==3.1.2
+
+# Optional (for Jupyter notebook)
+jupyter==1.0.0
