@@ -13,7 +13,7 @@ import schedule
 from datetime import datetime
 from cloudinary_utils import upload_image
 from instagram_poster import publish_single_post
-from instagram_analytics import InstagramAnalytics
+
 
 
 # Set up logging
@@ -213,11 +213,26 @@ def process_next_post():
         
         # Initialize required columns if missing
         required_columns = ['Published', 'Media ID', 'Image URL', 'Generated Captions']
+        columns_added = False  # Initialize here
+       
         for col in required_columns:
             if col not in df.columns:
-                df[col] = "" if col == 'Media ID' else "No"
+                df[col] = ""
+                columns_added = True
                 logging.warning(f"Added missing column: {col}")
 
+        # Save column changes immediately
+        if columns_added:
+            df.to_excel(EXCEL_FILE_PATH, index=False, engine='openpyxl')
+            logging.info("💾 Saved new column structure to Excel")
+
+        # Process Published column
+        if 'Published' in df.columns:
+            df['Published'] = df['Published'].fillna("No").replace("", "No")
+            if (df['Published'] == "No").any():
+                df.to_excel(EXCEL_FILE_PATH, index=False, engine='openpyxl')
+                logging.info("💾 Updated Published statuses in Excel")
+                
         # Find first unpublished post
         unpublished = df[df["Published"] == "No"].head(1)
         
@@ -283,25 +298,27 @@ def automate_content_generation():
 
     # Step 2: Generate images
     generate_images_from_excel(EXCEL_FILE_PATH, IMAGE_SAVE_PATH)
-    
-    # Step 3: Publish ONE post
+    logging.info("Content generation completed. Ready for publishing.")
+
+# Scheduled post publishing
+def publish_scheduled_posts():
+    """
+    Scheduled task to publish posts from Excel.
+    """
+    logging.info("Running scheduled post publishing...")
     processed = process_next_post()
     if processed:
         logging.info("Published 1 new post.")
     else:
-        logging.info("No new posts to publish. Stopping scheduler.")
-        return schedule.CancelJob  # Stop the scheduler
-    
-    logging.info("Process completed.")
-
-# Schedule the script to run every 3 minutes
-schedule.every(3).minutes.do(automate_content_generation)
-
+        logging.info("No new posts to publish.")
+        
+# Schedule post publishing every 3 minutes
+schedule.every(3).minutes.do(publish_scheduled_posts)
     
 # Run the script directly
 if __name__ == "__main__":
     logging.info("Script started.")
-    
+    automate_content_generation()
     # Run the scheduler
     while True:
         schedule.run_pending()
